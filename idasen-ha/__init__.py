@@ -6,8 +6,8 @@ from collections.abc import Callable
 import logging
 
 from bleak import BleakClient
-from idasen import IdasenDesk
 from bleak.backends.device import BLEDevice
+from idasen import IdasenDesk
 
 _LOGGER = logging.getLogger(__name__)
 
