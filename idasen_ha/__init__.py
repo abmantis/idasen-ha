@@ -17,11 +17,9 @@ class Desk:
 
     def __init__(
         self,
-        address: str,
         update_callback: Callable[[int | None], None] | None,
     ) -> None:
         """Initialize the wrapper."""
-        self._address = address
         self._idasen_desk: IdasenDesk = None
         self._height: float | None = None
 
