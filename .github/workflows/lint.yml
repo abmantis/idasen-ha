@@ -13,4 +13,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: jpetrucciani/ruff-check@0.0.239
+      - uses: jpetrucciani/ruff-check@main
