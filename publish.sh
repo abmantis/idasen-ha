@@ -1,3 +1,4 @@
-pip3 install --upgrade setuptools wheel twine
-python3 setup.py sdist bdist_wheel
-python3 -m twine upload -u __token__ -p $TOKEN dist/*
+pip3 install --upgrade build twine
+python3 -m build
+#python3 -m twine upload dist/*
+python3 -m twine upload --repository testpypi dist/*
