@@ -124,6 +124,7 @@ class Desk:
         """True if the bluetooth connection is currently established."""
         if self._idasen_desk is None:
             return False
-        if not self._idasen_desk.is_connected:
-            return False
-        return True
+        # bleak `is_connected` method returns a `_DeprecatedIsConnectedReturn`,
+        # so we properly cast it to bool otherwise `is_connected == True`
+        # will always be False.
+        return bool(self._idasen_desk.is_connected)
