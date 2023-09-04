@@ -122,4 +122,8 @@ class Desk:
     @property
     def is_connected(self) -> bool:
         """True if the bluetooth connection is currently established."""
-        return self._idasen_desk is not None and self._idasen_desk.is_connected
+        if self._idasen_desk is None:
+            return False
+        if not self._idasen_desk.is_connected:
+            return False
+        return True
