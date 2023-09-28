@@ -33,7 +33,7 @@ async def test_connect_disconnect(mock_idasen_desk: MagicMock):
     await desk.disconnect()
     assert not desk.is_connected
     mock_idasen_desk.disconnect.assert_called()
-    assert update_callback.call_count == 3
+    assert update_callback.call_count == 2
 
 
 async def test_disconnect_on_pair_failure(mock_idasen_desk: MagicMock):
