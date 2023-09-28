@@ -1,3 +1,7 @@
 -r requirements.txt
+-e .
 black
+pytest
+pytest-asyncio
+pytest-cov
 ruff
