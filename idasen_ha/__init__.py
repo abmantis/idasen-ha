@@ -20,7 +20,7 @@ class Desk:
         update_callback: Callable[[int | None], None] | None,
     ) -> None:
         """Initialize the wrapper."""
-        self._idasen_desk: IdasenDesk = None
+        self._idasen_desk: IdasenDesk | None = None
         self._height: float | None = None
 
         if update_callback:
@@ -61,7 +61,7 @@ class Desk:
     async def disconnect(self) -> None:
         """Disconnect from the desk."""
         _LOGGER.debug("Disconnecting")
-        if not self.is_connected:
+        if not self.is_connected or self._idasen_desk is None:
             _LOGGER.warning("Already disconnected")
             return
         await self._idasen_desk.disconnect()
@@ -70,6 +70,10 @@ class Desk:
     async def move_to(self, heigh_percent: int) -> None:
         """Move the desk to a specific position."""
         _LOGGER.debug("Moving to %s", heigh_percent)
+        if not self.is_connected or self._idasen_desk is None:
+            _LOGGER.warning("Not connected")
+            return
+
         if self._idasen_desk.is_moving:
             await self._idasen_desk.stop()
             # Let it settle before requesting new move
@@ -94,10 +98,16 @@ class Desk:
     async def stop(self) -> None:
         """Stop moving the desk."""
         _LOGGER.debug("Stopping")
+        if not self.is_connected or self._idasen_desk is None:
+            _LOGGER.warning("Not connected")
+            return
         await self._idasen_desk.stop()
 
     async def _start_monitoring(self) -> None:
         """Start monitoring for height changes."""
+        if not self.is_connected or self._idasen_desk is None:
+            _LOGGER.warning("Not connected")
+            return
 
         async def update_height(height: float) -> None:
             self._height = height

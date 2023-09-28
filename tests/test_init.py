@@ -118,3 +118,24 @@ async def test_stop(mock_idasen_desk: MagicMock):
 
     await desk.stop()
     mock_idasen_desk.stop.assert_called()
+
+
+@pytest.mark.parametrize("connect_first", [True, False])
+async def test_no_ops_if_not_connected(
+    mock_idasen_desk: MagicMock, connect_first: bool
+):
+    """Test that disconnect is called if pair fails."""
+    desk = Desk(Mock())
+
+    if connect_first:
+        await desk.connect(FAKE_BLE_DEVICE, True)
+        mock_idasen_desk.is_connected = False
+
+    assert not desk.is_connected
+    await desk.move_to(100)
+    await desk.stop()
+    await desk.disconnect()
+
+    mock_idasen_desk.move_to_target.assert_not_called()
+    mock_idasen_desk.stop.assert_not_called()
+    mock_idasen_desk.disconnect.assert_not_called()
