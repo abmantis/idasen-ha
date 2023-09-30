@@ -3,50 +3,11 @@
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
-from bleak.backends.device import BLEDevice
-from idasen import IdasenDesk
 import pytest
 
 from idasen_ha import Desk
 
-FAKE_BLE_DEVICE = BLEDevice("AA:BB:CC:DD:EE:FF", None, None, 0)
-
-
-def height_percent_to_meters(percent: float):
-    """Convert height from percentage to meters."""
-    return IdasenDesk.MIN_HEIGHT + (IdasenDesk.MAX_HEIGHT - IdasenDesk.MIN_HEIGHT) * (
-        percent / 100
-    )
-
-
-async def test_connect_disconnect(mock_idasen_desk: MagicMock):
-    """Test connect and disconnect."""
-    update_callback = Mock()
-    desk = Desk(update_callback)
-
-    await desk.connect(FAKE_BLE_DEVICE, False)
-    assert desk.is_connected
-    mock_idasen_desk.connect.assert_awaited()
-    mock_idasen_desk.pair.assert_called()
-    assert update_callback.call_count == 1
-
-    await desk.disconnect()
-    assert not desk.is_connected
-    mock_idasen_desk.disconnect.assert_called()
-    assert update_callback.call_count == 2
-
-
-async def test_disconnect_on_pair_failure(mock_idasen_desk: MagicMock):
-    """Test that disconnect is called if pair fails."""
-    update_callback = Mock()
-    desk = Desk(update_callback)
-
-    mock_idasen_desk.pair.side_effect = Exception()
-    with pytest.raises(Exception):
-        await desk.connect(FAKE_BLE_DEVICE, False)
-    assert not desk.is_connected
-    mock_idasen_desk.disconnect.assert_called()
-    assert update_callback.call_count == 1
+from . import FAKE_BLE_DEVICE, height_percent_to_meters
 
 
 async def test_monitor_height(mock_idasen_desk: MagicMock):
@@ -134,8 +95,6 @@ async def test_no_ops_if_not_connected(
     assert not desk.is_connected
     await desk.move_to(100)
     await desk.stop()
-    await desk.disconnect()
 
     mock_idasen_desk.move_to_target.assert_not_called()
     mock_idasen_desk.stop.assert_not_called()
-    mock_idasen_desk.disconnect.assert_not_called()
