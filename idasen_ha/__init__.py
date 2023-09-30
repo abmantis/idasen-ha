@@ -34,9 +34,18 @@ class Desk:
 
             self._update_callback = empty_update_callback
 
-    async def connect(self, ble_device: BLEDevice, monitor_height: bool = True) -> None:
+    async def connect(
+        self,
+        ble_device: BLEDevice,
+        monitor_height: bool = True,
+        auto_reconnect: bool = True,
+    ) -> None:
         """Perform the bluetooth connection to the desk."""
         _LOGGER.debug("Connecting")
+
+        if self._idasen_desk is not None:
+            _LOGGER.warning("Disconnect not called or already connecting.")
+            return
 
         def disconnect_callback() -> None:
             """Handle bluetooth disconnection."""
@@ -44,15 +53,8 @@ class Desk:
             self._update_callback(self.height_percent)
 
         self._idasen_desk = await self._connection_manager.connect(
-            ble_device, disconnect_callback
+            ble_device, disconnect_callback, auto_reconnect=auto_reconnect
         )
-
-        try:
-            await self._idasen_desk.pair()
-        except Exception as ex:
-            await self._idasen_desk.disconnect()
-            self._idasen_desk = None
-            raise ex
 
         if monitor_height:
             self._height = await self._idasen_desk.get_height()

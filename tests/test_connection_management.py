@@ -29,6 +29,16 @@ async def test_connect_disconnect(mock_idasen_desk: MagicMock):
     assert update_callback.call_count == 2
 
 
+async def test_connect_raises_without_auto_reconnect(mock_idasen_desk: MagicMock):
+    """Test that connect raises if auto_reconnect is False."""
+    desk = Desk(Mock())
+
+    mock_idasen_desk.connect.side_effect = TimeoutError()
+    with pytest.raises(TimeoutError):
+        await desk.connect(FAKE_BLE_DEVICE, False, auto_reconnect=False)
+    assert not desk.is_connected
+
+
 async def test_disconnect_on_pair_failure(mock_idasen_desk: MagicMock):
     """Test that disconnect is called if pair fails."""
     update_callback = Mock()
@@ -36,7 +46,7 @@ async def test_disconnect_on_pair_failure(mock_idasen_desk: MagicMock):
 
     mock_idasen_desk.pair.side_effect = Exception()
     with pytest.raises(Exception):
-        await desk.connect(FAKE_BLE_DEVICE, False)
+        await desk.connect(FAKE_BLE_DEVICE, False, auto_reconnect=False)
     assert not desk.is_connected
     mock_idasen_desk.disconnect.assert_called()
     assert update_callback.call_count == 1
@@ -44,10 +54,12 @@ async def test_disconnect_on_pair_failure(mock_idasen_desk: MagicMock):
 
 @mock.patch("idasen_ha.connection_manager.asyncio.sleep")
 @pytest.mark.parametrize("exception", [TimeoutError(), BleakError()])
+@pytest.mark.parametrize("fail_call", ["connect", "pair"])
 async def test_connect_exception_retry_with_disconnect(
     sleep_mock,
     mock_idasen_desk: MagicMock,
     exception: Exception,
+    fail_call: str,
 ) -> None:
     """Test connect retries on connection exception."""
     TEST_RETRIES_MAX = 3
@@ -66,7 +78,7 @@ async def test_connect_exception_retry_with_disconnect(
     update_callback = Mock()
     desk = Desk(update_callback)
 
-    mock_idasen_desk.connect.side_effect = exception
+    getattr(mock_idasen_desk, fail_call).side_effect = exception
     await desk.connect(FAKE_BLE_DEVICE, False)
 
     await retry_maxed_future
@@ -75,10 +87,12 @@ async def test_connect_exception_retry_with_disconnect(
 
 @mock.patch("idasen_ha.connection_manager.asyncio.sleep")
 @pytest.mark.parametrize("exception", [TimeoutError(), BleakError()])
+@pytest.mark.parametrize("fail_call", ["connect", "pair"])
 async def test_connect_exception_retry_success(
     sleep_mock,
     mock_idasen_desk: MagicMock,
     exception: Exception,
+    fail_call: str,
 ) -> None:
     """Test connect retries on connection exception."""
     TEST_RETRIES_MAX = 3
@@ -98,7 +112,7 @@ async def test_connect_exception_retry_success(
     update_callback = Mock()
     desk = Desk(update_callback)
 
-    mock_idasen_desk.connect.side_effect = exception
+    getattr(mock_idasen_desk, fail_call).side_effect = exception
     await desk.connect(FAKE_BLE_DEVICE, False)
 
     await retry_maxed_future
