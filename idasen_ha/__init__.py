@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
 import logging
+from typing import Callable
 
-from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from idasen import IdasenDesk
+
+from .connection_manager import ConnectionManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class Desk:
         update_callback: Callable[[int | None], None] | None,
     ) -> None:
         """Initialize the wrapper."""
+        self._connection_manager: ConnectionManager = ConnectionManager()
         self._idasen_desk: IdasenDesk | None = None
         self._height: float | None = None
 
@@ -36,16 +38,15 @@ class Desk:
         """Perform the bluetooth connection to the desk."""
         _LOGGER.debug("Connecting")
 
-        def disconnect_callback(client: BleakClient) -> None:
+        def disconnect_callback() -> None:
             """Handle bluetooth disconnection."""
             _LOGGER.debug("Disconnect callback called")
             self._update_callback(self.height_percent)
 
-        self._idasen_desk = IdasenDesk(
-            ble_device, exit_on_fail=False, disconnected_callback=disconnect_callback
+        self._idasen_desk = await self._connection_manager.connect(
+            ble_device, disconnect_callback
         )
 
-        await self._idasen_desk.connect()
         try:
             await self._idasen_desk.pair()
         except Exception as ex:
@@ -61,10 +62,7 @@ class Desk:
     async def disconnect(self) -> None:
         """Disconnect from the desk."""
         _LOGGER.debug("Disconnecting")
-        if not self.is_connected or self._idasen_desk is None:
-            _LOGGER.warning("Already disconnected")
-            return
-        await self._idasen_desk.disconnect()
+        await self._connection_manager.disconnect()
         self._idasen_desk = None
 
     async def move_to(self, heigh_percent: int) -> None:

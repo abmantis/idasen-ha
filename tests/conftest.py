@@ -13,7 +13,9 @@ import pytest
 async def mock_idasen_desk():
     """Test height monitoring."""
 
-    with mock.patch("idasen_ha.IdasenDesk", autospec=True) as patched_idasen_desk:
+    with mock.patch(
+        "idasen_ha.connection_manager.IdasenDesk", autospec=True
+    ) as patched_idasen_desk:
         patched_idasen_desk.MIN_HEIGHT = IdasenDesk.MIN_HEIGHT
         patched_idasen_desk.MAX_HEIGHT = IdasenDesk.MAX_HEIGHT
 
