@@ -13,12 +13,12 @@ from . import FAKE_BLE_DEVICE, height_percent_to_meters
 async def test_monitor_height(mock_idasen_desk: MagicMock):
     """Test height monitoring."""
     update_callback = Mock()
-    desk = Desk(update_callback)
+    desk = Desk(update_callback, True)
 
     HEIGHT_1 = 50
     mock_idasen_desk.get_height.return_value = height_percent_to_meters(HEIGHT_1)
 
-    await desk.connect(FAKE_BLE_DEVICE, True)
+    await desk.connect(FAKE_BLE_DEVICE)
     mock_idasen_desk.connect.assert_called()
     mock_idasen_desk.pair.assert_called()
     mock_idasen_desk.get_height.assert_called()
@@ -33,8 +33,8 @@ async def test_monitor_height(mock_idasen_desk: MagicMock):
 
 async def test_moves(mock_idasen_desk: MagicMock):
     """Test movement calls."""
-    desk = Desk(None)
-    await desk.connect(FAKE_BLE_DEVICE, True)
+    desk = Desk(None, True)
+    await desk.connect(FAKE_BLE_DEVICE)
 
     mock_idasen_desk.is_moving = False
 
@@ -59,8 +59,8 @@ async def test_moves(mock_idasen_desk: MagicMock):
 
 async def test_stop_before_move(mock_idasen_desk: MagicMock):
     """Test that movement is stoped before new movement starts."""
-    desk = Desk(None)
-    await desk.connect(FAKE_BLE_DEVICE, True)
+    desk = Desk(None, True)
+    await desk.connect(FAKE_BLE_DEVICE)
 
     mock_idasen_desk.is_moving = True
 
@@ -74,8 +74,8 @@ async def test_stop_before_move(mock_idasen_desk: MagicMock):
 
 async def test_stop(mock_idasen_desk: MagicMock):
     """Test stop call."""
-    desk = Desk(None)
-    await desk.connect(FAKE_BLE_DEVICE, False)
+    desk = Desk(None, False)
+    await desk.connect(FAKE_BLE_DEVICE)
 
     await desk.stop()
     mock_idasen_desk.stop.assert_called()
@@ -86,10 +86,10 @@ async def test_no_ops_if_not_connected(
     mock_idasen_desk: MagicMock, connect_first: bool
 ):
     """Test that disconnect is called if pair fails."""
-    desk = Desk(Mock())
+    desk = Desk(Mock(), False)
 
     if connect_first:
-        await desk.connect(FAKE_BLE_DEVICE, True)
+        await desk.connect(FAKE_BLE_DEVICE)
         mock_idasen_desk.is_connected = False
 
     assert not desk.is_connected

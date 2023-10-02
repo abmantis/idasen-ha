@@ -1,5 +1,6 @@
 """Manages the connection state to the desk."""
 import asyncio
+from collections.abc import Awaitable
 import logging
 from typing import Callable
 
@@ -17,26 +18,33 @@ class ConnectionManager:
     This retries to reconnect when the connection is lost.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        connect_callback: Callable[[IdasenDesk], Awaitable[None]],
+        disconnect_callback: Callable[[], None],
+    ):
         """Init ConnectionManager."""
+        self._connect_callback = connect_callback
+        self._disconnect_callback = disconnect_callback
         self._idasen_desk: IdasenDesk | None = None
+        self._connecting: bool = False
+        self._pending_reconnet: bool = False
 
     async def connect(
         self,
         ble_device: BLEDevice,
-        disconnect_callback=Callable[[], None],
         auto_reconnect: bool = True,
-    ) -> IdasenDesk:
+    ):
         """Perform the bluetooth connection to the desk."""
 
-        if self._idasen_desk is not None:
-            _LOGGER.warning("Disconnect not called or already connecting.")
+        if self._idasen_desk and self._connecting:
+            _LOGGER.debug("Connection in progress already")
             return self._idasen_desk
 
         def internal_disconnect_callback(client: BleakClient) -> None:
             """Handle bluetooth disconnection."""
             _LOGGER.debug("Disconnect callback called")
-            disconnect_callback()
+            self._disconnect_callback()
 
         self._idasen_desk = IdasenDesk(
             ble_device,
@@ -45,34 +53,41 @@ class ConnectionManager:
         )
 
         await self._connect(auto_reconnect=auto_reconnect)
-        return self._idasen_desk
 
     async def _connect(self, auto_reconnect: bool = True):
         if self._idasen_desk is None:
-            _LOGGER.info("Not connecting since desk is None.")
+            _LOGGER.info("Not connecting since desk is None (disconnect called?).")
             return
 
+        self._connecting = True
         try:
-            _LOGGER.info("Connecting...")
-            await self._idasen_desk.connect()
-        except (TimeoutError, BleakError) as ex:
-            if auto_reconnect:
-                self._schedule_reconnect()
-                return
-            else:
-                raise ex
+            try:
+                _LOGGER.info("Connecting...")
+                await self._idasen_desk.connect()
+            except (TimeoutError, BleakError) as ex:
+                _LOGGER.warning("Connect failed")
+                if auto_reconnect:
+                    self._schedule_reconnect()
+                    return
+                else:
+                    raise ex
 
-        try:
-            _LOGGER.info("Pairing...")
-            await self._idasen_desk.pair()
-        except Exception as ex:
-            await self._idasen_desk.disconnect()
-            if auto_reconnect:
-                self._schedule_reconnect()
-            else:
-                raise ex
+            try:
+                _LOGGER.info("Pairing...")
+                await self._idasen_desk.pair()
+            except Exception as ex:
+                _LOGGER.warning("Pair failed")
+                await self._idasen_desk.disconnect()
+                if auto_reconnect:
+                    self._schedule_reconnect()
+                    return
+                else:
+                    raise ex
 
-        _LOGGER.info("Connected!")
+            _LOGGER.info("Connected!")
+            await self._connect_callback(self._idasen_desk)
+        finally:
+            self._connecting = False
 
     async def disconnect(self) -> None:
         """Disconnect from the desk."""
@@ -89,9 +104,18 @@ class ConnectionManager:
         RECONNECT_INTERVAL_SEC = 30
         _LOGGER.info("Will try to connect in %ds", RECONNECT_INTERVAL_SEC)
 
+        if self._pending_reconnet:
+            _LOGGER.warning("There is already a reconnect task pending")
+            return
+
         async def _reconnect():
+            self._pending_reconnet = True
             await asyncio.sleep(RECONNECT_INTERVAL_SEC)
+            self._pending_reconnet = False
+            _LOGGER.debug("Retrying to connect now")
+            if self._idasen_desk is not None and self._idasen_desk.is_connected:
+                _LOGGER.debug("Already connected")
+                return
             await self._connect()
 
         asyncio.get_event_loop().create_task(_reconnect())
-        pass

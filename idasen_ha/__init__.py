@@ -19,9 +19,9 @@ class Desk:
     def __init__(
         self,
         update_callback: Callable[[int | None], None] | None,
+        monitor_height: bool = True,
     ) -> None:
         """Initialize the wrapper."""
-        self._connection_manager: ConnectionManager = ConnectionManager()
         self._idasen_desk: IdasenDesk | None = None
         self._height: float | None = None
 
@@ -34,32 +34,34 @@ class Desk:
 
             self._update_callback = empty_update_callback
 
-    async def connect(
-        self,
-        ble_device: BLEDevice,
-        monitor_height: bool = True,
-        auto_reconnect: bool = True,
-    ) -> None:
-        """Perform the bluetooth connection to the desk."""
-        _LOGGER.debug("Connecting")
-
-        if self._idasen_desk is not None:
-            _LOGGER.warning("Disconnect not called or already connecting.")
-            return
+        async def connect_callback(idasen_desk: IdasenDesk):
+            _LOGGER.debug("Connect callback called")
+            self._idasen_desk = idasen_desk
+            if monitor_height:
+                self._height = await self._idasen_desk.get_height()
+                await self._start_monitoring()
+            self._update_callback(self.height_percent)
 
         def disconnect_callback() -> None:
             """Handle bluetooth disconnection."""
             _LOGGER.debug("Disconnect callback called")
             self._update_callback(self.height_percent)
 
-        self._idasen_desk = await self._connection_manager.connect(
-            ble_device, disconnect_callback, auto_reconnect=auto_reconnect
+        self._connection_manager: ConnectionManager = ConnectionManager(
+            connect_callback=connect_callback, disconnect_callback=disconnect_callback
         )
 
-        if monitor_height:
-            self._height = await self._idasen_desk.get_height()
-            await self._start_monitoring()
-        self._update_callback(self.height_percent)
+    async def connect(
+        self,
+        ble_device: BLEDevice,
+        auto_reconnect: bool = True,
+    ) -> None:
+        """Perform the bluetooth connection to the desk."""
+        _LOGGER.debug("Connecting")
+
+        await self._connection_manager.connect(
+            ble_device, auto_reconnect=auto_reconnect
+        )
 
     async def disconnect(self) -> None:
         """Disconnect from the desk."""
