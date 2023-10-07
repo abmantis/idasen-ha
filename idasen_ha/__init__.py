@@ -7,9 +7,14 @@ import logging
 
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
+from bleak.exc import BleakDBusError
 from idasen import IdasenDesk
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class AuthFailedError(Exception):
+    """Authentication Failed Exception."""
 
 
 class Desk:
@@ -46,8 +51,14 @@ class Desk:
         )
 
         await self._idasen_desk.connect()
+
         try:
             await self._idasen_desk.pair()
+        except BleakDBusError as ex:
+            await self._idasen_desk.disconnect()
+            if ex.dbus_error == "org.bluez.Error.AuthenticationFailed":
+                raise AuthFailedError() from ex
+            raise ex
         except Exception as ex:
             await self._idasen_desk.disconnect()
             self._idasen_desk = None
