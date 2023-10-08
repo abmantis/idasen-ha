@@ -4,10 +4,11 @@ import asyncio
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
-from bleak.exc import BleakError
+from bleak.exc import BleakDBusError, BleakError
 import pytest
 
 from idasen_ha import Desk
+from idasen_ha.connection_manager import AuthFailedError
 
 from . import FAKE_BLE_DEVICE
 
@@ -89,13 +90,22 @@ async def test_connect_raises_without_auto_reconnect(mock_idasen_desk: MagicMock
     assert not desk.is_connected
 
 
-async def test_disconnect_on_pair_failure(mock_idasen_desk: MagicMock):
+@pytest.mark.parametrize(
+    ("pair_exception", "raised_exception"),
+    [
+        (Exception(), Exception),
+        (BleakDBusError("org.bluez.Error.AuthenticationFailed", ""), AuthFailedError),
+    ],
+)
+async def test_disconnect_on_pair_failure(
+    mock_idasen_desk: MagicMock, pair_exception, raised_exception
+):
     """Test that disconnect is called if pair fails."""
     update_callback = Mock()
     desk = Desk(update_callback, False)
 
-    mock_idasen_desk.pair.side_effect = Exception()
-    with pytest.raises(Exception):
+    mock_idasen_desk.pair.side_effect = pair_exception
+    with pytest.raises(raised_exception):
         await desk.connect(FAKE_BLE_DEVICE, auto_reconnect=False)
     assert not desk.is_connected
     mock_idasen_desk.disconnect.assert_called()
