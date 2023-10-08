@@ -9,11 +9,9 @@ from bleak.backends.device import BLEDevice
 from bleak.exc import BleakDBusError, BleakError
 from idasen import IdasenDesk
 
+from .errors import AuthFailedError
+
 _LOGGER = logging.getLogger(__name__)
-
-
-class AuthFailedError(Exception):
-    """Authentication Failed Exception."""
 
 
 class ConnectionManager:
