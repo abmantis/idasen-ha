@@ -15,20 +15,24 @@ async def test_monitor_height(mock_idasen_desk: MagicMock):
     update_callback = Mock()
     desk = Desk(update_callback, True)
 
-    HEIGHT_1 = 50
-    mock_idasen_desk.get_height.return_value = height_percent_to_meters(HEIGHT_1)
+    HEIGHT_PCT_1 = 50
+    HEIGHT_MTS_1 = height_percent_to_meters(HEIGHT_PCT_1)
+    mock_idasen_desk.get_height.return_value = HEIGHT_MTS_1
 
     await desk.connect(FAKE_BLE_DEVICE)
     mock_idasen_desk.connect.assert_called()
     mock_idasen_desk.pair.assert_called()
     mock_idasen_desk.get_height.assert_called()
-    update_callback.assert_called_with(HEIGHT_1)
-    assert desk.height_percent == HEIGHT_1
+    update_callback.assert_called_with(HEIGHT_PCT_1)
+    assert desk.height == HEIGHT_MTS_1
+    assert desk.height_percent == HEIGHT_PCT_1
 
-    HEIGHT_2 = 80
-    await mock_idasen_desk.trigger_monitor_callback(height_percent_to_meters(HEIGHT_2))
-    update_callback.assert_called_with(HEIGHT_2)
-    assert desk.height_percent == HEIGHT_2
+    HEIGHT_PCT_2 = 80
+    HEIGHT_MTS_2 = height_percent_to_meters(HEIGHT_PCT_2)
+    await mock_idasen_desk.trigger_monitor_callback(HEIGHT_MTS_2)
+    update_callback.assert_called_with(HEIGHT_PCT_2)
+    assert desk.height == HEIGHT_MTS_2
+    assert desk.height_percent == HEIGHT_PCT_2
 
 
 async def test_moves(mock_idasen_desk: MagicMock):
