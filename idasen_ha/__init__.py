@@ -118,6 +118,11 @@ class Desk:
         await self._idasen_desk.monitor(update_height)
 
     @property
+    def height(self) -> float | None:
+        """The current height in meters."""
+        return self._height
+
+    @property
     def height_percent(self) -> int | None:
         """The current height in percentage."""
         if self._height is None:
