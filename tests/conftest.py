@@ -1,4 +1,5 @@
 """Generic test fixtures."""
+
 from collections.abc import Awaitable
 from typing import Callable, Optional
 from unittest import mock

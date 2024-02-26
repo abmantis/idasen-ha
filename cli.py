@@ -1,4 +1,5 @@
 """Manual testing CLI."""
+
 # ruff: noqa: T201
 import argparse
 import asyncio

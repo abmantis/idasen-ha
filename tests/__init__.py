@@ -1,4 +1,5 @@
 """Tests for idasen_ha."""
+
 from bleak.backends.device import BLEDevice
 from idasen import IdasenDesk
 
