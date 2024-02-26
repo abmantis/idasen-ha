@@ -1,4 +1,5 @@
 """Manages the connection state to the desk."""
+
 import asyncio
 from collections.abc import Awaitable
 import logging
