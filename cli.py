@@ -34,6 +34,9 @@ def print_menu():
     print(30 * "-", "MENU", 30 * "-")
     print("c - Connect")
     print("d - Disconnect")
+    print("k - Move Up")
+    print("j - Move Down")
+    print("0 - Stop Moving")
     print("q - Quit")
     print("h - Print this menu")
     print(67 * "-")
@@ -70,6 +73,12 @@ async def start():
                 logger.exception(ex)
         elif choice == "d":
             await desk.disconnect()
+        elif choice == "k":
+            asyncio.create_task(desk.move_up())  # noqa: RUF006
+        elif choice == "j":
+            asyncio.create_task(desk.move_down())  # noqa: RUF006
+        elif choice == "0":
+            await desk.stop()
         elif choice == "q":
             loop = False
         else:
