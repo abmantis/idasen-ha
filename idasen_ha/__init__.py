@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import Callable
 
+from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from idasen import IdasenDesk
 
@@ -24,7 +25,10 @@ class Desk:
     ) -> None:
         """Initialize the wrapper."""
         self._idasen_desk: IdasenDesk | None = None
+        self._ble_device: BLEDevice | None = None
+        self._connection_manager: ConnectionManager | None = None
         self._height: float | None = None
+        self._monitor_height: bool = monitor_height
 
         if update_callback:
             self._update_callback = update_callback
@@ -35,40 +39,30 @@ class Desk:
 
             self._update_callback = empty_update_callback
 
-        async def connect_callback(idasen_desk: IdasenDesk):
-            _LOGGER.debug("Connect callback called")
-            self._idasen_desk = idasen_desk
-            if monitor_height:
-                self._height = await self._idasen_desk.get_height()
-                await self._start_monitoring()
-            self._update_callback(self.height_percent)
-
-        def disconnect_callback() -> None:
-            """Handle bluetooth disconnection."""
-            _LOGGER.debug("Disconnect callback called")
-            self._update_callback(self.height_percent)
-
-        self._connection_manager: ConnectionManager = ConnectionManager(
-            connect_callback=connect_callback, disconnect_callback=disconnect_callback
-        )
-
-    async def connect(
-        self,
-        ble_device: BLEDevice,
-        auto_reconnect: bool = True,
-    ) -> None:
+    async def connect(self, ble_device: BLEDevice, retry: bool = True) -> None:
         """Perform the bluetooth connection to the desk."""
         _LOGGER.debug("Connecting")
 
-        await self._connection_manager.connect(
-            ble_device, auto_reconnect=auto_reconnect
-        )
+        if (
+            self._connection_manager is None
+            or self._ble_device is None
+            or ble_device.address != self._ble_device.address
+        ):
+            _LOGGER.debug("Initializing idasen desk")
+            await self.disconnect()
+            self._ble_device = ble_device
+            self._idasen_desk = self._create_idasen_desk(self._ble_device)
+            self._connection_manager = self._create_connection_manager(
+                self._idasen_desk
+            )
+
+        await self._connection_manager.connect(retry=retry)
 
     async def disconnect(self) -> None:
         """Disconnect from the desk."""
-        _LOGGER.debug("Disconnecting")
-        await self._connection_manager.disconnect()
-        self._idasen_desk = None
+        if self._connection_manager:
+            _LOGGER.debug("Disconnecting")
+            await self._connection_manager.disconnect()
 
     async def move_to(self, heigh_percent: int) -> None:
         """Move the desk to a specific position."""
@@ -79,7 +73,7 @@ class Desk:
 
         if self._idasen_desk.is_moving:
             await self._idasen_desk.stop()
-            # Let it settle before requesting new move
+            # Let it settle before requesting a new move
             await asyncio.sleep(0.5)
 
         height = IdasenDesk.MIN_HEIGHT + (
@@ -146,3 +140,31 @@ class Desk:
         # so we properly cast it to bool otherwise `is_connected == True`
         # will always be False.
         return bool(self._idasen_desk.is_connected)
+
+    def _create_idasen_desk(self, ble_device: BLEDevice) -> IdasenDesk:
+        def disconnect_callback(client: BleakClient) -> None:
+            """Handle bluetooth disconnection."""
+            _LOGGER.debug("Disconnect callback called")
+            self._update_callback(self.height_percent)
+
+        return IdasenDesk(
+            ble_device, exit_on_fail=False, disconnected_callback=disconnect_callback
+        )
+
+    def _create_connection_manager(self, desk: IdasenDesk) -> ConnectionManager:
+        async def connect_callback() -> None:
+            _LOGGER.debug("Connect callback called")
+            if self._idasen_desk is None:
+                _LOGGER.error("Desk is None after connecting")
+                return
+
+            if self._monitor_height:
+                self._height = await self._idasen_desk.get_height()
+                await self._start_monitoring()
+
+            self._update_callback(self.height_percent)
+
+        return ConnectionManager(
+            desk,
+            connect_callback=connect_callback,
+        )
