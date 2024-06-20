@@ -6,7 +6,6 @@ import asyncio
 import logging
 from typing import Callable
 
-from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from idasen import IdasenDesk
 
@@ -24,7 +23,6 @@ class Desk:
         monitor_height: bool = True,
     ) -> None:
         """Initialize the wrapper."""
-        self._idasen_desk: IdasenDesk | None = None
         self._ble_device: BLEDevice | None = None
         self._connection_manager: ConnectionManager | None = None
         self._height: float | None = None
@@ -51,12 +49,9 @@ class Desk:
             _LOGGER.debug("Initializing idasen desk")
             await self.disconnect()
             self._ble_device = ble_device
-            self._idasen_desk = self._create_idasen_desk(self._ble_device)
-            self._connection_manager = self._create_connection_manager(
-                self._idasen_desk
-            )
+            self._connection_manager = self._create_connection_manager(self._ble_device)
 
-        await self._connection_manager.connect(retry=retry)
+        await self._connection_manager.connect(retry)
 
     async def disconnect(self) -> None:
         """Disconnect from the desk."""
@@ -141,17 +136,13 @@ class Desk:
         # will always be False.
         return bool(self._idasen_desk.is_connected)
 
-    def _create_idasen_desk(self, ble_device: BLEDevice) -> IdasenDesk:
-        def disconnect_callback(client: BleakClient) -> None:
-            """Handle bluetooth disconnection."""
-            _LOGGER.debug("Disconnect callback called")
-            self._update_callback(self.height_percent)
+    @property
+    def _idasen_desk(self) -> IdasenDesk | None:
+        if self._connection_manager is None:
+            return None
+        return self._connection_manager.idasen_desk
 
-        return IdasenDesk(
-            ble_device, exit_on_fail=False, disconnected_callback=disconnect_callback
-        )
-
-    def _create_connection_manager(self, desk: IdasenDesk) -> ConnectionManager:
+    def _create_connection_manager(self, ble_device: BLEDevice) -> ConnectionManager:
         async def connect_callback() -> None:
             _LOGGER.debug("Connect callback called")
             if self._idasen_desk is None:
@@ -165,6 +156,7 @@ class Desk:
             self._update_callback(self.height_percent)
 
         return ConnectionManager(
-            desk,
+            ble_device,
             connect_callback=connect_callback,
+            disconnect_callback=lambda: self._update_callback(self.height_percent),
         )
