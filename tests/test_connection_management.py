@@ -174,7 +174,15 @@ async def test_connect_exception_retry_with_disconnect(
 
 
 @mock.patch("idasen_ha.connection_manager.asyncio.sleep")
-@pytest.mark.parametrize("exception", [TimeoutError(), BleakError()])
+@pytest.mark.parametrize(
+    "exception",
+    [
+        TimeoutError(),
+        BleakError(),
+        BleakDBusError("", []),
+        BleakDBusError("org.bluez.Error.AuthenticationFailed", []),
+    ],
+)
 @pytest.mark.parametrize("fail_call_name", ["connect", "pair"])
 async def test_connect_exception_retry_success(
     sleep_mock,
