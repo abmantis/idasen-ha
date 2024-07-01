@@ -71,14 +71,17 @@ class ConnectionManager:
                 if retry:
                     self._schedule_reconnect()
                     return
-                else:
-                    raise ex
+                raise ex
 
             try:
                 _LOGGER.info("Pairing...")
                 await self._idasen_desk.pair()
             except BleakDBusError as ex:
+                _LOGGER.exception("Pair failed")
                 await self._idasen_desk.disconnect()
+                if retry:
+                    self._schedule_reconnect()
+                    return
                 if ex.dbus_error == "org.bluez.Error.AuthenticationFailed":
                     raise AuthFailedError() from ex
                 raise ex
@@ -88,8 +91,7 @@ class ConnectionManager:
                 if retry:
                     self._schedule_reconnect()
                     return
-                else:
-                    raise ex
+                raise ex
 
             await self._handle_connect()
         finally:
