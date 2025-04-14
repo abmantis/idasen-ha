@@ -1,15 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.2"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "idasen-ha"
 version = "2.6.3"
+license = "MIT"
 authors = [{name = "Abílio Costa", email = "amfcalt@gmail.com"}]
 description = "Home Assistant helper lib for the IKEA Idasen Desk integration"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
 requires-python = ">=3.9"
