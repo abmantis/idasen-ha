@@ -64,7 +64,7 @@ async def test_double_connect_call_with_different_bledevice():
         async def connect_side_effect():
             # call the seccond `connect` while the first is ongoing
             mock_idasen_desk.connect.side_effect = MagicMock()
-            new_ble_device = BLEDevice("AA:BB:CC:DD:EE:AA", None, None, 0)
+            new_ble_device = BLEDevice("AA:BB:CC:DD:EE:AA", None, None)
             await desk.connect(new_ble_device)
 
         mock_idasen_desk.is_connected = False

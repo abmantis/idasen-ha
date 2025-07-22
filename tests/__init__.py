@@ -3,7 +3,7 @@
 from bleak.backends.device import BLEDevice
 from idasen import IdasenDesk
 
-FAKE_BLE_DEVICE = BLEDevice("AA:BB:CC:DD:EE:FF", None, {"path": ""}, 0)
+FAKE_BLE_DEVICE = BLEDevice("AA:BB:CC:DD:EE:FF", None, {"path": ""})
 
 
 def height_percent_to_meters(percent: float):
