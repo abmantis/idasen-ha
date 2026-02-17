@@ -57,8 +57,12 @@ class ConnectionManager:
         )
 
     async def _connect(self, retry: bool) -> None:
+        if self._idasen_desk.is_connected:
+            _LOGGER.debug("Desk already connected, skipping connect")
+            return
+
         if self._connecting:
-            _LOGGER.info("Connection already in progress.")
+            _LOGGER.debug("Connection already in progress")
             return
 
         self._connecting = True
