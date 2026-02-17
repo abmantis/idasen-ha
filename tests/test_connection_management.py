@@ -32,6 +32,19 @@ async def test_connect_disconnect(mock_idasen_desk: MagicMock):
     assert update_callback.call_count == 2
 
 
+async def test_connect_skipped_when_already_connected(mock_idasen_desk: MagicMock):
+    """Test that connect is skipped when the desk is already connected."""
+    update_callback = Mock()
+    desk = Desk(update_callback, False)
+
+    mock_idasen_desk.is_connected = True
+
+    await desk.connect(FAKE_BLE_DEVICE)
+    mock_idasen_desk.connect.assert_not_awaited()
+    mock_idasen_desk.pair.assert_not_called()
+    assert update_callback.call_count == 0
+
+
 async def test_double_connect_call_with_same_bledevice(mock_idasen_desk: MagicMock):
     """Test connect being called again with the same BLEDevice, while still connecting."""
     update_callback = Mock()
