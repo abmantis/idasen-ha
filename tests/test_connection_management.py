@@ -69,11 +69,14 @@ async def test_double_connect_call_with_same_bledevice(mock_idasen_desk: MagicMo
 async def test_double_connect_call_with_different_bledevice():
     """Test connect being called again with a new BLEDevice, while still connecting."""
 
-    with mock.patch(
-        "idasen_ha.connection_manager.IdasenDesk", autospec=True
-    ) as patched_idasen_desk, mock.patch(
-        "idasen_ha.connection_manager.establish_connection"
-    ) as mock_establish_connection:
+    with (
+        mock.patch(
+            "idasen_ha.connection_manager.IdasenDesk", autospec=True
+        ) as patched_idasen_desk,
+        mock.patch(
+            "idasen_ha.connection_manager.establish_connection"
+        ) as mock_establish_connection,
+    ):
         mock_idasen_desk = patched_idasen_desk.return_value
         mock_idasen_desk.is_connected = False
         mock_idasen_desk.wakeup = AsyncMock()
@@ -83,7 +86,9 @@ async def test_double_connect_call_with_different_bledevice():
 
         mock_idasen_desk.disconnect = AsyncMock(side_effect=mock_disconnect)
 
-        async def first_establish_side_effect(client_class, ble_device, address, **kwargs):
+        async def first_establish_side_effect(
+            client_class, ble_device, address, **kwargs
+        ):
             # Switch side effect so subsequent establish_connection calls succeed simply
             async def subsequent_establish(*args, **kw):
                 mock_idasen_desk.is_connected = True
