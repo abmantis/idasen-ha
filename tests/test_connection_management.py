@@ -2,7 +2,7 @@
 
 import asyncio
 from unittest import mock
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakDBusError, BleakError
@@ -52,10 +52,10 @@ async def test_double_connect_call_with_same_bledevice(mock_idasen_desk: MagicMo
 
     default_connect_side_effect = mock_idasen_desk.connect.side_effect
 
-    async def connect_side_effect():
+    async def connect_side_effect(*args, **kwargs):
         # call the seccond `connect` while the first is ongoing
         await desk.connect(FAKE_BLE_DEVICE)
-        await default_connect_side_effect()
+        await default_connect_side_effect(*args, **kwargs)
 
     mock_idasen_desk.connect.side_effect = connect_side_effect
 
@@ -71,23 +71,38 @@ async def test_double_connect_call_with_different_bledevice():
 
     with mock.patch(
         "idasen_ha.connection_manager.IdasenDesk", autospec=True
-    ) as patched_idasen_desk:
+    ) as patched_idasen_desk, mock.patch(
+        "idasen_ha.connection_manager.establish_connection"
+    ) as mock_establish_connection:
         mock_idasen_desk = patched_idasen_desk.return_value
+        mock_idasen_desk.is_connected = False
+        mock_idasen_desk.wakeup = AsyncMock()
 
-        async def connect_side_effect():
-            # call the seccond `connect` while the first is ongoing
-            mock_idasen_desk.connect.side_effect = MagicMock()
+        async def mock_disconnect():
+            mock_idasen_desk.is_connected = False
+
+        mock_idasen_desk.disconnect = AsyncMock(side_effect=mock_disconnect)
+
+        async def first_establish_side_effect(client_class, ble_device, address, **kwargs):
+            # Switch side effect so subsequent establish_connection calls succeed simply
+            async def subsequent_establish(*args, **kw):
+                mock_idasen_desk.is_connected = True
+                return MagicMock()
+
+            mock_establish_connection.side_effect = subsequent_establish
+            # Call the second connect with a different BLE device while first is in progress
             new_ble_device = BLEDevice("AA:BB:CC:DD:EE:AA", None, None)
             await desk.connect(new_ble_device)
+            mock_idasen_desk.is_connected = True
+            return MagicMock()
 
-        mock_idasen_desk.is_connected = False
-        mock_idasen_desk.connect.side_effect = connect_side_effect
+        mock_establish_connection.side_effect = first_establish_side_effect
 
         update_callback = Mock()
         desk = Desk(update_callback, False)
         await desk.connect(FAKE_BLE_DEVICE)
 
-        mock_idasen_desk.connect.assert_awaited()
+        mock_establish_connection.assert_awaited()
         mock_idasen_desk.pair.assert_called()
         assert update_callback.call_count == 2
         assert patched_idasen_desk.call_count == 2
@@ -238,6 +253,7 @@ async def test_reconnect_on_connection_drop(mock_idasen_desk: MagicMock):
     assert update_callback.call_count == 1
 
     mock_idasen_desk.reset_mock()
+    mock_idasen_desk.connect.reset_mock()  # establish_connection is external, reset separately
     await mock_idasen_desk.disconnect()
     assert not desk.is_connected
     assert update_callback.call_count == 2
