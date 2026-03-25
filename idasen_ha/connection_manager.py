@@ -7,6 +7,11 @@ from typing import Callable
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakDBusError, BleakError
+from bleak_retry_connector import (
+    BleakClientWithServiceCache,
+    close_stale_connections_by_address,
+    establish_connection,
+)
 from idasen import IdasenDesk
 
 from .errors import AuthFailedError
@@ -27,6 +32,7 @@ class ConnectionManager:
         self._keep_connected: bool = False
         self._connecting: bool = False
         self._retry_pending: bool = False
+        self._ble_device = ble_device
 
         self._idasen_desk: IdasenDesk = self._create_idasen_desk(ble_device)
 
@@ -37,6 +43,10 @@ class ConnectionManager:
     def idasen_desk(self) -> IdasenDesk:
         """The IdasenDesk instance."""
         return self._idasen_desk
+
+    def update_ble_device(self, ble_device: BLEDevice) -> None:
+        """Update the BLE device reference (e.g. after rediscovery)."""
+        self._ble_device = ble_device
 
     async def connect(self, retry: bool) -> None:
         """Perform the bluetooth connection to the desk."""
@@ -68,10 +78,15 @@ class ConnectionManager:
         self._connecting = True
         try:
             try:
-                _LOGGER.info("Connecting...")
-                # Connect without wakeup — IdasenDesk.connect() bundles both,
-                # but we need pair() to complete before wakeup().
-                await self._idasen_desk._client.connect()  # noqa: SLF001
+                _LOGGER.info("Connecting via bleak-retry-connector...")
+                await close_stale_connections_by_address(self._ble_device.address)
+                client = await establish_connection(
+                    BleakClientWithServiceCache,
+                    self._ble_device,
+                    self._ble_device.address,
+                    disconnected_callback=lambda _client: self._handle_disconnect(),
+                )
+                self._idasen_desk._client = client  # noqa: SLF001
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")
                 if retry:
