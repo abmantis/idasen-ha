@@ -20,7 +20,7 @@ async def test_monitor_height(mock_idasen_desk: MagicMock):
     mock_idasen_desk.get_height.return_value = HEIGHT_MTS_1
 
     await desk.connect(FAKE_BLE_DEVICE)
-    mock_idasen_desk.connect.assert_called()
+    mock_idasen_desk.establish_connection.assert_called()
     mock_idasen_desk.pair.assert_called()
     mock_idasen_desk.get_height.assert_called()
     update_callback.assert_called_with(HEIGHT_PCT_1)
@@ -70,9 +70,13 @@ async def test_stop_before_move(mock_idasen_desk: MagicMock):
 
     HEIGHT_1 = 50
     await desk.move_to(HEIGHT_1)
-    # ensure stop() is called before move_to_target()
+    # ensure stop() is called, then wakeup(), then move_to_target()
     mock_idasen_desk.assert_has_calls(
-        [mock.call.stop(), mock.call.move_to_target(height_percent_to_meters(HEIGHT_1))]
+        [
+            mock.call.stop(),
+            mock.call.wakeup(),
+            mock.call.move_to_target(height_percent_to_meters(HEIGHT_1)),
+        ]
     )
 
 

@@ -48,8 +48,8 @@ async def mock_idasen_desk():
         async def mock_monitor(callback: Callable[[float], Awaitable[None]]) -> None:
             mock_desk.trigger_monitor_callback = callback
 
-        # Alias establish_connection as mock_desk.connect for test compatibility
-        mock_desk.connect = mock_establish_connection
+        # Alias establish_connection for test assertions
+        mock_desk.establish_connection = mock_establish_connection
         mock_desk.disconnect = AsyncMock(side_effect=mock_disconnect)
         mock_desk.monitor = AsyncMock(side_effect=mock_monitor)
         mock_desk.wakeup = AsyncMock()
