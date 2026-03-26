@@ -12,8 +12,8 @@ from bleak_retry_connector import (
     close_stale_connections_by_address,
     establish_connection,
 )
-from idasen import IdasenDesk
 
+from .desk import ManagedIdasenDesk
 from .errors import AuthFailedError
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,13 +34,13 @@ class ConnectionManager:
         self._retry_pending: bool = False
         self._ble_device = ble_device
 
-        self._idasen_desk: IdasenDesk = self._create_idasen_desk(ble_device)
+        self._idasen_desk: ManagedIdasenDesk = self._create_idasen_desk(ble_device)
 
         self._connect_callback = connect_callback
         self._disconnect_callback = disconnect_callback
 
     @property
-    def idasen_desk(self) -> IdasenDesk:
+    def idasen_desk(self) -> ManagedIdasenDesk:
         """The IdasenDesk instance."""
         return self._idasen_desk
 
@@ -55,12 +55,8 @@ class ConnectionManager:
         if self._idasen_desk.is_connected:
             await self._idasen_desk.disconnect()
 
-    def _create_idasen_desk(self, ble_device: BLEDevice) -> IdasenDesk:
-        return IdasenDesk(
-            ble_device,
-            exit_on_fail=False,
-            disconnected_callback=lambda bledevice: self._handle_disconnect(),
-        )
+    def _create_idasen_desk(self, ble_device: BLEDevice) -> ManagedIdasenDesk:
+        return ManagedIdasenDesk(ble_device, exit_on_fail=False)
 
     async def _connect(self, retry: bool) -> None:
         if self._idasen_desk.is_connected:
@@ -82,7 +78,7 @@ class ConnectionManager:
                     self._ble_device.address,
                     disconnected_callback=lambda _client: self._handle_disconnect(),
                 )
-                self._idasen_desk._client = client  # noqa: SLF001
+                self._idasen_desk.set_client(client)
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")
                 if retry:
@@ -111,10 +107,16 @@ class ConnectionManager:
                 raise ex
 
             try:
+<<<<<<< HEAD
                 # Wakeup after pair so BLE authentication completes before
                 # writing to GATT characteristics. IdasenDesk.connect()
                 # normally does this immediately, which fails through
                 # Bluetooth proxies that require bonding first.
+=======
+                # This replaces the wakeup normally done inside IdasenDesk.connect(),
+                # which we intentionally avoid because Bluetooth proxy setups need
+                # pairing/authentication to complete before the wakeup writes.
+>>>>>>> 13938b8 (refactor: encapsulate external BLE client handoff)
                 await self._idasen_desk.wakeup()
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Wakeup failed")

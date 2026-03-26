@@ -74,7 +74,7 @@ async def test_double_connect_call_with_different_bledevice():
 
     with (
         mock.patch(
-            "idasen_ha.connection_manager.IdasenDesk", autospec=True
+            "idasen_ha.connection_manager.ManagedIdasenDesk", autospec=True
         ) as patched_idasen_desk,
         mock.patch(
             "idasen_ha.connection_manager.establish_connection"
