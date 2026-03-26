@@ -44,8 +44,11 @@ class ConnectionManager:
         """The IdasenDesk instance."""
         return self._idasen_desk
 
-    async def connect(self, retry: bool) -> None:
+    async def connect(self, ble_device: BLEDevice, retry: bool) -> None:
         """Perform the bluetooth connection to the desk."""
+        if ble_device.address != self._ble_device.address:
+            self._ble_device = ble_device
+            self._idasen_desk = self._create_idasen_desk(ble_device)
         self._keep_connected = True
         await self._connect(retry)
 
@@ -178,4 +181,4 @@ class ConnectionManager:
         self._disconnect_callback()
         if self._keep_connected and not self._retry_pending:
             _LOGGER.info("Reconnecting since it should not be disconnected")
-            asyncio.get_event_loop().create_task(self.connect(True))
+            asyncio.get_event_loop().create_task(self.connect(self._ble_device, True))
