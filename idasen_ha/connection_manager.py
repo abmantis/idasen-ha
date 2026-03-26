@@ -110,16 +110,10 @@ class ConnectionManager:
                 raise ex
 
             try:
-<<<<<<< HEAD
                 # Wakeup after pair so BLE authentication completes before
                 # writing to GATT characteristics. IdasenDesk.connect()
                 # normally does this immediately, which fails through
                 # Bluetooth proxies that require bonding first.
-=======
-                # This replaces the wakeup normally done inside IdasenDesk.connect(),
-                # which we intentionally avoid because Bluetooth proxy setups need
-                # pairing/authentication to complete before the wakeup writes.
->>>>>>> 13938b8 (refactor: encapsulate external BLE client handoff)
                 await self._idasen_desk.wakeup()
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Wakeup failed")

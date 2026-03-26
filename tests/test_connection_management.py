@@ -274,6 +274,23 @@ async def test_connect_exception_retry_success(
     assert mock_idasen_desk.connect.call_count == TEST_RETRIES_MAX + 2
 
 
+async def test_connect_with_different_ble_device_address(mock_idasen_desk: MagicMock):
+    """Test that connect refreshes the desk when the BLE device address changes."""
+    update_callback = Mock()
+    desk = Desk(update_callback, False)
+
+    await desk.connect(FAKE_BLE_DEVICE)
+    assert desk.is_connected
+    assert update_callback.call_count == 1
+
+    await desk.disconnect()
+
+    new_device = BLEDevice("11:22:33:44:55:66", None, {"path": ""})
+    await desk.connect(new_device)
+    assert desk.is_connected
+    assert update_callback.call_count == 3
+
+
 async def test_reconnect_on_connection_drop(mock_idasen_desk: MagicMock):
     """Test reconnection when the connection drops."""
     update_callback = Mock()
