@@ -5,10 +5,9 @@ from collections.abc import Awaitable
 import logging
 from typing import Callable
 
-from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakDBusError, BleakError
-from bleak_retry_connector import establish_connection
+from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from idasen import IdasenDesk
 
 from .errors import AuthFailedError
@@ -29,6 +28,7 @@ class ConnectionManager:
         self._keep_connected: bool = False
         self._connecting: bool = False
         self._retry_pending: bool = False
+        self._cached_services = None
 
         self._ble_device: BLEDevice = ble_device
         self._idasen_desk: IdasenDesk = self._create_idasen_desk(ble_device)
@@ -69,11 +69,13 @@ class ConnectionManager:
             try:
                 _LOGGER.info("Connecting...")
                 client = await establish_connection(
-                    BleakClient,
+                    BleakClientWithServiceCache,
                     self._ble_device,
                     self._ble_device.address,
                     disconnected_callback=lambda _: self._handle_disconnect(),
+                    cached_services=self._cached_services,
                 )
+                self._cached_services = client.services
                 self._idasen_desk._client = client
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")

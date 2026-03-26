@@ -57,7 +57,7 @@ async def test_double_connect_call_with_same_bledevice(mock_idasen_desk: MagicMo
     async def connect_side_effect(*args, **kwargs):
         # call the seccond `connect` while the first is ongoing
         await desk.connect(FAKE_BLE_DEVICE)
-        await default_connect_side_effect(*args, **kwargs)
+        return await default_connect_side_effect(*args, **kwargs)
 
     mock_idasen_desk.establish_connection.side_effect = connect_side_effect
 
