@@ -278,6 +278,57 @@ async def test_connect_exception_retry_success(
     assert mock_idasen_desk.establish_connection.call_count == TEST_RETRIES_MAX + 2
 
 
+async def test_non_auth_dbus_error_raises(mock_idasen_desk: MagicMock):
+    """Test that a non-auth BleakDBusError is re-raised when retry=False."""
+    desk = Desk(Mock(), False)
+
+    mock_idasen_desk.pair.side_effect = BleakDBusError("org.bluez.Error.Failed", [])
+    with pytest.raises(BleakDBusError):
+        await desk.connect(FAKE_BLE_DEVICE, retry=False)
+    mock_idasen_desk.disconnect.assert_called()
+
+
+async def test_schedule_reconnect_already_pending(mock_idasen_desk: MagicMock):
+    """Test that scheduling a reconnect when one is already pending is a no-op."""
+    desk = Desk(Mock(), False)
+    await desk.connect(FAKE_BLE_DEVICE)
+
+    cm = desk._connection_manager
+    cm._retry_pending = True
+    cm._schedule_reconnect()  # should return early without creating a second task
+    assert cm._retry_pending is True
+
+
+@mock.patch("idasen_ha.connection_manager.asyncio.sleep")
+async def test_reconnect_aborted_when_disconnected(
+    sleep_mock,
+    mock_idasen_desk: MagicMock,
+) -> None:
+    """Test that a scheduled reconnect is aborted if keep_connected becomes False."""
+    import asyncio as real_asyncio
+
+    async def sleep_side_effect(delay):
+        pass
+
+    sleep_mock.side_effect = sleep_side_effect
+
+    desk = Desk(Mock(), False)
+    mock_idasen_desk.establish_connection.side_effect = TimeoutError()
+    await desk.connect(FAKE_BLE_DEVICE)
+    assert not desk.is_connected
+
+    await desk.disconnect()  # sets _keep_connected = False
+
+    mock_idasen_desk.establish_connection.side_effect = None
+
+    # Yield to let the pending _reconnect task run and observe _keep_connected=False
+    await real_asyncio.sleep(0)
+    await real_asyncio.sleep(0)
+
+    # Only the initial failed attempt; no reconnect since _keep_connected=False
+    assert mock_idasen_desk.establish_connection.call_count == 1
+
+
 async def test_reconnect_on_connection_drop(mock_idasen_desk: MagicMock):
     """Test reconnection when the connection drops."""
     update_callback = Mock()
