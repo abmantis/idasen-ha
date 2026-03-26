@@ -44,10 +44,6 @@ class ConnectionManager:
         """The IdasenDesk instance."""
         return self._idasen_desk
 
-    def update_ble_device(self, ble_device: BLEDevice) -> None:
-        """Update the BLE device reference (e.g. after rediscovery)."""
-        self._ble_device = ble_device
-
     async def connect(self, retry: bool) -> None:
         """Perform the bluetooth connection to the desk."""
         self._keep_connected = True
