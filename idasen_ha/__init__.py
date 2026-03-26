@@ -154,10 +154,6 @@ class Desk:
     def _create_connection_manager(self, ble_device: BLEDevice) -> ConnectionManager:
         async def connect_callback() -> None:
             _LOGGER.debug("Connect callback called")
-            if self._idasen_desk is None:
-                _LOGGER.error("Desk is None after connecting")
-                return
-
             if self._monitor_height:
                 self._height = await self._idasen_desk.get_height()
                 await self._start_monitoring()
