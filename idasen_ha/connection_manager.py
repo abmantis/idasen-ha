@@ -75,7 +75,6 @@ class ConnectionManager:
                     disconnected_callback=lambda _: self._handle_disconnect(),
                 )
                 self._idasen_desk._client = client
-                await self._idasen_desk.wakeup()
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")
                 if retry:
@@ -86,6 +85,7 @@ class ConnectionManager:
             try:
                 _LOGGER.info("Pairing...")
                 await self._idasen_desk.pair()
+                await self._idasen_desk.wakeup()
             except BleakDBusError as ex:
                 _LOGGER.exception("Pair failed")
                 await self._idasen_desk.disconnect()
