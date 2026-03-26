@@ -69,6 +69,8 @@ class ConnectionManager:
         try:
             try:
                 _LOGGER.info("Connecting...")
+                # Connect without wakeup — IdasenDesk.connect() bundles both,
+                # but we need pair() to complete before wakeup().
                 await self._idasen_desk._client.connect()  # noqa: SLF001
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")
