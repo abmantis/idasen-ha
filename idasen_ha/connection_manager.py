@@ -6,6 +6,7 @@ import logging
 from typing import Callable
 
 from bleak.backends.device import BLEDevice
+from bleak.backends.service import BleakGATTServiceCollection
 from bleak.exc import BleakDBusError, BleakError
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from idasen import IdasenDesk
@@ -28,7 +29,7 @@ class ConnectionManager:
         self._keep_connected: bool = False
         self._connecting: bool = False
         self._retry_pending: bool = False
-        self._cached_services = None
+        self._cached_services: BleakGATTServiceCollection | None = None
 
         self._ble_device: BLEDevice = ble_device
         self._idasen_desk: IdasenDesk = self._create_idasen_desk(ble_device)
