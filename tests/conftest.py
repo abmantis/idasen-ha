@@ -32,7 +32,7 @@ async def mock_idasen_desk():
 
         patched_idasen_desk.side_effect = mock_init
 
-        async def mock_connect():
+        async def mock_client_connect():
             mock_desk.is_connected = True
 
         async def mock_disconnect():
@@ -42,8 +42,10 @@ async def mock_idasen_desk():
         async def mock_monitor(callback: Callable[[float], Awaitable[None]]) -> None:
             mock_desk.trigger_monitor_callback = callback
 
-        mock_desk.connect = AsyncMock(side_effect=mock_connect)
+        mock_desk._client = AsyncMock()
+        mock_desk._client.connect = AsyncMock(side_effect=mock_client_connect)
         mock_desk.disconnect = AsyncMock(side_effect=mock_disconnect)
+        mock_desk.wakeup = AsyncMock()
         mock_desk.monitor = AsyncMock(side_effect=mock_monitor)
         mock_desk.is_connected = False
         mock_desk.is_moving = False
