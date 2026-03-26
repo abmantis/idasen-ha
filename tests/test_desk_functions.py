@@ -3,8 +3,8 @@
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-import pytest
 from bleak.exc import BleakError
+import pytest
 
 from idasen_ha import Desk
 

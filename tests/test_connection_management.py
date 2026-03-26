@@ -305,7 +305,6 @@ async def test_reconnect_aborted_when_disconnected(
     mock_idasen_desk: MagicMock,
 ) -> None:
     """Test that a scheduled reconnect is aborted if keep_connected becomes False."""
-    import asyncio as real_asyncio
 
     async def sleep_side_effect(delay):
         pass
@@ -322,8 +321,8 @@ async def test_reconnect_aborted_when_disconnected(
     mock_idasen_desk.establish_connection.side_effect = None
 
     # Yield to let the pending _reconnect task run and observe _keep_connected=False
-    await real_asyncio.sleep(0)
-    await real_asyncio.sleep(0)
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
 
     # Only the initial failed attempt; no reconnect since _keep_connected=False
     assert mock_idasen_desk.establish_connection.call_count == 1
