@@ -7,6 +7,7 @@ import logging
 from typing import Callable
 
 from bleak.backends.device import BLEDevice
+from bleak.exc import BleakError
 from idasen import IdasenDesk
 
 from .connection_manager import ConnectionManager
@@ -67,7 +68,11 @@ class Desk:
             return
 
         if self._idasen_desk.is_moving:
-            await self._idasen_desk.stop()
+            try:
+                await self._idasen_desk.stop()
+            except (BleakError, TimeoutError):
+                _LOGGER.warning("Failed to stop desk before moving", exc_info=True)
+                return
             # Let it settle before requesting a new move
             await asyncio.sleep(0.5)
 
@@ -75,7 +80,11 @@ class Desk:
             IdasenDesk.MAX_HEIGHT - IdasenDesk.MIN_HEIGHT
         ) * (heigh_percent / 100)
 
-        await self._idasen_desk.move_to_target(height)
+        try:
+            await self._idasen_desk.wakeup()
+            await self._idasen_desk.move_to_target(height)
+        except (BleakError, TimeoutError):
+            _LOGGER.warning("Failed to move desk", exc_info=True)
 
     async def move_up(self) -> None:
         """Move the desk up."""
@@ -145,7 +154,7 @@ class Desk:
     def _create_connection_manager(self, ble_device: BLEDevice) -> ConnectionManager:
         async def connect_callback() -> None:
             _LOGGER.debug("Connect callback called")
-            if self._idasen_desk is None:
+            if self._idasen_desk is None:  # pragma: no cover
                 _LOGGER.error("Desk is None after connecting")
                 return
 

@@ -1,8 +1,9 @@
 """Tests for idasen_ha."""
 
 from unittest import mock
-from unittest.mock import MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
+from bleak.exc import BleakError
 import pytest
 
 from idasen_ha import Desk
@@ -20,7 +21,7 @@ async def test_monitor_height(mock_idasen_desk: MagicMock):
     mock_idasen_desk.get_height.return_value = HEIGHT_MTS_1
 
     await desk.connect(FAKE_BLE_DEVICE)
-    mock_idasen_desk._client.connect.assert_called()
+    mock_idasen_desk.establish_connection.assert_called()
     mock_idasen_desk.pair.assert_called()
     mock_idasen_desk.get_height.assert_called()
     update_callback.assert_called_with(HEIGHT_PCT_1)
@@ -70,10 +71,55 @@ async def test_stop_before_move(mock_idasen_desk: MagicMock):
 
     HEIGHT_1 = 50
     await desk.move_to(HEIGHT_1)
-    # ensure stop() is called before move_to_target()
+    # ensure stop() is called, then wakeup(), then move_to_target()
     mock_idasen_desk.assert_has_calls(
-        [mock.call.stop(), mock.call.move_to_target(height_percent_to_meters(HEIGHT_1))]
+        [
+            mock.call.stop(),
+            mock.call.wakeup(),
+            mock.call.move_to_target(height_percent_to_meters(HEIGHT_1)),
+        ]
     )
+
+
+async def test_stop_failure_before_move(mock_idasen_desk: MagicMock):
+    """Test that move_to returns early when stop raises before moving."""
+    desk = Desk(None, False)
+    await desk.connect(FAKE_BLE_DEVICE)
+
+    mock_idasen_desk.is_moving = True
+    mock_idasen_desk.stop = AsyncMock(side_effect=BleakError())
+
+    await desk.move_to(50)
+    mock_idasen_desk.move_to_target.assert_not_called()
+
+
+async def test_move_to_failure(mock_idasen_desk: MagicMock):
+    """Test that move_to swallows BleakError from move_to_target."""
+    desk = Desk(None, False)
+    await desk.connect(FAKE_BLE_DEVICE)
+
+    mock_idasen_desk.is_moving = False
+    mock_idasen_desk.move_to_target = AsyncMock(side_effect=BleakError())
+
+    await desk.move_to(50)  # should not raise
+
+
+async def test_monitoring_skipped_if_disconnected_during_get_height(
+    mock_idasen_desk: MagicMock,
+):
+    """Test that monitoring is skipped if the desk disconnects during get_height."""
+
+    async def get_height_and_disconnect():
+        # Simulate a BLE disconnect occurring while get_height is in progress
+        mock_idasen_desk.is_connected = False
+        return height_percent_to_meters(50)
+
+    mock_idasen_desk.get_height.side_effect = get_height_and_disconnect
+
+    desk = Desk(Mock(), True)
+    await desk.connect(FAKE_BLE_DEVICE)
+
+    mock_idasen_desk.monitor.assert_not_called()
 
 
 async def test_stop(mock_idasen_desk: MagicMock):

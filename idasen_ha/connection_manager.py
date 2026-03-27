@@ -6,7 +6,9 @@ import logging
 from typing import Callable
 
 from bleak.backends.device import BLEDevice
+from bleak.backends.service import BleakGATTServiceCollection
 from bleak.exc import BleakDBusError, BleakError
+from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
 from idasen import IdasenDesk
 
 from .errors import AuthFailedError
@@ -27,7 +29,9 @@ class ConnectionManager:
         self._keep_connected: bool = False
         self._connecting: bool = False
         self._retry_pending: bool = False
+        self._cached_services: BleakGATTServiceCollection | None = None
 
+        self._ble_device: BLEDevice = ble_device
         self._idasen_desk: IdasenDesk = self._create_idasen_desk(ble_device)
 
         self._connect_callback = connect_callback
@@ -50,11 +54,7 @@ class ConnectionManager:
             await self._idasen_desk.disconnect()
 
     def _create_idasen_desk(self, ble_device: BLEDevice) -> IdasenDesk:
-        return IdasenDesk(
-            ble_device,
-            exit_on_fail=False,
-            disconnected_callback=lambda bledevice: self._handle_disconnect(),
-        )
+        return IdasenDesk(ble_device, exit_on_fail=False)
 
     async def _connect(self, retry: bool) -> None:
         if self._idasen_desk.is_connected:
@@ -69,9 +69,15 @@ class ConnectionManager:
         try:
             try:
                 _LOGGER.info("Connecting...")
-                # Connect without wakeup — IdasenDesk.connect() bundles both,
-                # but we need pair() to complete before wakeup().
-                await self._idasen_desk._client.connect()  # noqa: SLF001
+                client = await establish_connection(
+                    BleakClientWithServiceCache,
+                    self._ble_device,
+                    self._ble_device.address,
+                    disconnected_callback=lambda _: self._handle_disconnect(),
+                    cached_services=self._cached_services,
+                )
+                self._cached_services = client.services
+                self._idasen_desk._client = client
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")
                 if retry:
@@ -82,6 +88,7 @@ class ConnectionManager:
             try:
                 _LOGGER.info("Pairing...")
                 await self._idasen_desk.pair()
+                await self._idasen_desk.wakeup()
             except BleakDBusError as ex:
                 _LOGGER.exception("Pair failed")
                 await self._idasen_desk.disconnect()
@@ -93,20 +100,6 @@ class ConnectionManager:
                 raise ex
             except Exception as ex:
                 _LOGGER.exception("Pair failed")
-                await self._idasen_desk.disconnect()
-                if retry:
-                    self._schedule_reconnect()
-                    return
-                raise ex
-
-            try:
-                # Wakeup after pair so BLE authentication completes before
-                # writing to GATT characteristics. IdasenDesk.connect()
-                # normally does this immediately, which fails through
-                # Bluetooth proxies that require bonding first.
-                await self._idasen_desk.wakeup()
-            except (TimeoutError, BleakError) as ex:
-                _LOGGER.exception("Wakeup failed")
                 await self._idasen_desk.disconnect()
                 if retry:
                     self._schedule_reconnect()
