@@ -51,7 +51,6 @@ async def mock_idasen_desk():
         # Alias establish_connection for test assertions
         mock_desk.establish_connection = mock_establish_connection
         mock_desk.disconnect = AsyncMock(side_effect=mock_disconnect)
-        mock_desk.wakeup = AsyncMock()
         mock_desk.monitor = AsyncMock(side_effect=mock_monitor)
         mock_desk.wakeup = AsyncMock()
         mock_desk.is_connected = False

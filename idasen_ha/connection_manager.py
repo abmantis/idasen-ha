@@ -106,20 +106,6 @@ class ConnectionManager:
                     return
                 raise ex
 
-            try:
-                # Wakeup after pair so BLE authentication completes before
-                # writing to GATT characteristics. IdasenDesk.connect()
-                # normally does this immediately, which fails through
-                # Bluetooth proxies that require bonding first.
-                await self._idasen_desk.wakeup()
-            except (TimeoutError, BleakError) as ex:
-                _LOGGER.exception("Wakeup failed")
-                await self._idasen_desk.disconnect()
-                if retry:
-                    self._schedule_reconnect()
-                    return
-                raise ex
-
             await self._handle_connect()
         finally:
             self._connecting = False
