@@ -33,6 +33,11 @@ class ManagedIdasenDesk(IdasenDesk):
         self._moving = False
         self._move_task: Optional[asyncio.Task] = None
 
+    @property
+    def is_connected(self) -> bool:
+        """Return whether the desk is connected."""
+        return self._client is not None and self._client.is_connected
+
     def set_client(self, client: BleakClient) -> None:
         """Adopt an externally-established BLE client."""
         self._client = client
