@@ -173,6 +173,7 @@ async def test_wakeup_called_after_pair(mock_idasen_desk: MagicMock):
     [
         (Exception(), Exception),
         (BleakDBusError("org.bluez.Error.AuthenticationFailed", ""), AuthFailedError),
+        (BleakDBusError("org.bluez.Error.Failed", ""), BleakDBusError),
     ],
 )
 async def test_disconnect_on_pair_failure(
@@ -186,6 +187,29 @@ async def test_disconnect_on_pair_failure(
     with pytest.raises(raised_exception):
         await desk.connect(FAKE_BLE_DEVICE, retry=False)
     assert not desk.is_connected
+    mock_idasen_desk.disconnect.assert_called()
+    mock_idasen_desk.wakeup.assert_not_called()
+    assert update_callback.call_count == 0
+
+
+async def test_wakeup_happens_after_pair(mock_idasen_desk: MagicMock):
+    """Test that wakeup is awaited after pairing succeeds."""
+    desk = Desk(Mock(), False)
+    await desk.connect(FAKE_BLE_DEVICE)
+    mock_idasen_desk.assert_has_calls([call.pair(), call.wakeup()])
+
+
+async def test_disconnect_on_wakeup_failure(mock_idasen_desk: MagicMock):
+    """Test that disconnect is called if wakeup fails."""
+    update_callback = Mock()
+    desk = Desk(update_callback, False)
+
+    mock_idasen_desk.wakeup.side_effect = BleakError()
+
+    with pytest.raises(BleakError):
+        await desk.connect(FAKE_BLE_DEVICE, retry=False)
+
+    mock_idasen_desk.pair.assert_called_once()
     mock_idasen_desk.disconnect.assert_called()
     assert update_callback.call_count == 0
 
@@ -229,7 +253,10 @@ async def test_connect_exception_retry_with_disconnect(
 
     desk = Desk(Mock(), False)
 
-    getattr(mock_idasen_desk, fail_call_name).side_effect = exception
+    fail_target = mock_idasen_desk
+    for attr in fail_call_name.split("."):
+        fail_target = getattr(fail_target, attr)
+    fail_target.side_effect = exception
     await desk.connect(FAKE_BLE_DEVICE)
 
     await retry_maxed_future
@@ -258,20 +285,22 @@ async def test_connect_exception_retry_success(
     retry_count = 0
     retry_maxed_future = asyncio.Future()
 
-    fail_call = getattr(mock_idasen_desk, fail_call_name)
-    default_fail_call_side_effect = fail_call.side_effect
+    fail_target = mock_idasen_desk
+    for attr in fail_call_name.split("."):
+        fail_target = getattr(fail_target, attr)
+    default_fail_call_side_effect = fail_target.side_effect
 
     async def sleep_handler(delay):
         nonlocal retry_count
         if retry_count == TEST_RETRIES_MAX:
-            fail_call.side_effect = default_fail_call_side_effect
+            fail_target.side_effect = default_fail_call_side_effect
             retry_maxed_future.set_result(None)
         retry_count = retry_count + 1
 
     sleep_mock.side_effect = sleep_handler
 
     desk = Desk(Mock(), False)
-    fail_call.side_effect = exception
+    fail_target.side_effect = exception
     await desk.connect(FAKE_BLE_DEVICE)
 
     await retry_maxed_future
