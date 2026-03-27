@@ -229,10 +229,7 @@ async def test_connect_exception_retry_with_disconnect(
 
     desk = Desk(Mock(), False)
 
-    fail_target = mock_idasen_desk
-    for attr in fail_call_name.split("."):
-        fail_target = getattr(fail_target, attr)
-    fail_target.side_effect = exception
+    getattr(mock_idasen_desk, fail_call_name).side_effect = exception
     await desk.connect(FAKE_BLE_DEVICE)
 
     await retry_maxed_future
@@ -261,22 +258,20 @@ async def test_connect_exception_retry_success(
     retry_count = 0
     retry_maxed_future = asyncio.Future()
 
-    fail_target = mock_idasen_desk
-    for attr in fail_call_name.split("."):
-        fail_target = getattr(fail_target, attr)
-    default_fail_call_side_effect = fail_target.side_effect
+    fail_call = getattr(mock_idasen_desk, fail_call_name)
+    default_fail_call_side_effect = fail_call.side_effect
 
     async def sleep_handler(delay):
         nonlocal retry_count
         if retry_count == TEST_RETRIES_MAX:
-            fail_target.side_effect = default_fail_call_side_effect
+            fail_call.side_effect = default_fail_call_side_effect
             retry_maxed_future.set_result(None)
         retry_count = retry_count + 1
 
     sleep_mock.side_effect = sleep_handler
 
     desk = Desk(Mock(), False)
-    fail_target.side_effect = exception
+    fail_call.side_effect = exception
     await desk.connect(FAKE_BLE_DEVICE)
 
     await retry_maxed_future
