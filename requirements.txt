@@ -1,1 +1,2 @@
 idasen>=0.10,<=0.12.0
+bleak-retry-connector>=3.4.0
