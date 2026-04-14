@@ -103,6 +103,8 @@ class Desk:
 
         async def update_height(height: float) -> None:
             self._height = height
+            if self._idasen_desk is not None:
+                self._idasen_desk.update_height(height)
             self._update_callback(self.height_percent)
 
         await self._idasen_desk.monitor(update_height)
@@ -151,6 +153,7 @@ class Desk:
 
             if self._monitor_height:
                 self._height = await self._idasen_desk.get_height()
+                self._idasen_desk.update_height(self._height)
                 await self._start_monitoring()
 
             self._update_callback(self.height_percent)
