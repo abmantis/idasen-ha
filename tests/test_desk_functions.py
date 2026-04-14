@@ -20,7 +20,7 @@ async def test_monitor_height(mock_idasen_desk: MagicMock):
     mock_idasen_desk.get_height.return_value = HEIGHT_MTS_1
 
     await desk.connect(FAKE_BLE_DEVICE)
-    mock_idasen_desk._client.connect.assert_called()
+    mock_idasen_desk.connect.assert_called()
     mock_idasen_desk.pair.assert_called()
     mock_idasen_desk.get_height.assert_called()
     update_callback.assert_called_with(HEIGHT_PCT_1)

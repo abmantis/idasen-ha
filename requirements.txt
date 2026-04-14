@@ -1,1 +1,2 @@
-idasen>=0.10,<=0.12.0
+idasen>=0.13.1,<0.14
+bleak-retry-connector>=3.4.0

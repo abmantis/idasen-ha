@@ -51,7 +51,7 @@ class Desk:
             self._ble_device = ble_device
             self._connection_manager = self._create_connection_manager(self._ble_device)
 
-        await self._connection_manager.connect(retry)
+        await self._connection_manager.connect(ble_device, retry)
 
     async def disconnect(self) -> None:
         """Disconnect from the desk."""
