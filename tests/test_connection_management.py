@@ -21,7 +21,7 @@ async def test_connect_disconnect(mock_idasen_desk: MagicMock):
 
     await desk.connect(FAKE_BLE_DEVICE)
     assert desk.is_connected
-    mock_idasen_desk.connect.assert_awaited()
+    mock_idasen_desk.establish_connection.assert_awaited()
     mock_idasen_desk.pair.assert_called()
     mock_idasen_desk.wakeup.assert_awaited_once()
     assert update_callback.call_count == 1
@@ -43,13 +43,13 @@ async def test_connect_skipped_when_already_connected(mock_idasen_desk: MagicMoc
     # callback invocations).
     await desk.connect(FAKE_BLE_DEVICE)
     assert desk.is_connected
-    initial_connect_count = mock_idasen_desk.connect.await_count
+    initial_connect_count = mock_idasen_desk.establish_connection.await_count
     initial_pair_count = mock_idasen_desk.pair.call_count
     initial_wakeup_count = mock_idasen_desk.wakeup.await_count
     initial_callback_count = update_callback.call_count
 
     await desk.connect(FAKE_BLE_DEVICE)
-    assert mock_idasen_desk.connect.await_count == initial_connect_count
+    assert mock_idasen_desk.establish_connection.await_count == initial_connect_count
     assert mock_idasen_desk.pair.call_count == initial_pair_count
     assert mock_idasen_desk.wakeup.await_count == initial_wakeup_count
     assert update_callback.call_count == initial_callback_count
@@ -60,18 +60,18 @@ async def test_double_connect_call_with_same_bledevice(mock_idasen_desk: MagicMo
     update_callback = Mock()
     desk = Desk(update_callback, False)
 
-    default_connect_side_effect = mock_idasen_desk.connect.side_effect
+    default_connect_side_effect = mock_idasen_desk.establish_connection.side_effect
 
     async def connect_side_effect(*args, **kwargs):
         # call the seccond `connect` while the first is ongoing
         await desk.connect(FAKE_BLE_DEVICE)
         return await default_connect_side_effect(*args, **kwargs)
 
-    mock_idasen_desk.connect.side_effect = connect_side_effect
+    mock_idasen_desk.establish_connection.side_effect = connect_side_effect
 
     await desk.connect(FAKE_BLE_DEVICE)
     assert desk.is_connected
-    mock_idasen_desk.connect.assert_awaited()
+    mock_idasen_desk.establish_connection.assert_awaited()
     mock_idasen_desk.pair.assert_called()
     mock_idasen_desk.wakeup.assert_awaited_once()
     assert update_callback.call_count == 1
@@ -133,22 +133,22 @@ async def test_connect_called_while_retry_pending(
     update_callback = Mock()
     desk = Desk(update_callback, False)
 
-    default_connect_side_effect = mock_idasen_desk.connect.side_effect
+    default_connect_side_effect = mock_idasen_desk.establish_connection.side_effect
 
     async def sleep_side_effect(delay):
-        mock_idasen_desk.connect.side_effect = default_connect_side_effect
+        mock_idasen_desk.establish_connection.side_effect = default_connect_side_effect
         await desk.connect(FAKE_BLE_DEVICE)
         retry_maxed_future.set_result(None)
 
     sleep_mock.side_effect = sleep_side_effect
 
-    mock_idasen_desk.connect.side_effect = TimeoutError()
+    mock_idasen_desk.establish_connection.side_effect = TimeoutError()
     await desk.connect(FAKE_BLE_DEVICE)
     assert not desk.is_connected
 
     await retry_maxed_future
     assert desk.is_connected
-    assert mock_idasen_desk.connect.call_count == 2
+    assert mock_idasen_desk.establish_connection.call_count == 2
     assert update_callback.call_count == 1
 
 
@@ -156,7 +156,7 @@ async def test_connect_raises_without_auto_reconnect(mock_idasen_desk: MagicMock
     """Test that connect raises if auto_reconnect is False."""
     desk = Desk(Mock(), False)
 
-    mock_idasen_desk.connect.side_effect = TimeoutError()
+    mock_idasen_desk.establish_connection.side_effect = TimeoutError()
     with pytest.raises(TimeoutError):
         await desk.connect(FAKE_BLE_DEVICE, retry=False)
     assert not desk.is_connected
@@ -210,7 +210,7 @@ async def test_disconnect_on_wakeup_failure(mock_idasen_desk: MagicMock):
 
 @mock.patch("idasen_ha.connection_manager.asyncio.sleep")
 @pytest.mark.parametrize("exception", [TimeoutError(), BleakError()])
-@pytest.mark.parametrize("fail_call_name", ["connect", "pair", "wakeup"])
+@pytest.mark.parametrize("fail_call_name", ["establish_connection", "pair", "wakeup"])
 async def test_connect_exception_retry_with_disconnect(
     sleep_mock,
     mock_idasen_desk: MagicMock,
@@ -237,7 +237,7 @@ async def test_connect_exception_retry_with_disconnect(
     await desk.connect(FAKE_BLE_DEVICE)
 
     await retry_maxed_future
-    assert mock_idasen_desk.connect.call_count == TEST_RETRIES_MAX + 1
+    assert mock_idasen_desk.establish_connection.call_count == TEST_RETRIES_MAX + 1
 
 
 @mock.patch("idasen_ha.connection_manager.asyncio.sleep")
@@ -250,7 +250,7 @@ async def test_connect_exception_retry_with_disconnect(
         BleakDBusError("org.bluez.Error.AuthenticationFailed", []),
     ],
 )
-@pytest.mark.parametrize("fail_call_name", ["connect", "pair", "wakeup"])
+@pytest.mark.parametrize("fail_call_name", ["establish_connection", "pair", "wakeup"])
 async def test_connect_exception_retry_success(
     sleep_mock,
     mock_idasen_desk: MagicMock,
@@ -279,7 +279,7 @@ async def test_connect_exception_retry_success(
     await desk.connect(FAKE_BLE_DEVICE)
 
     await retry_maxed_future
-    assert mock_idasen_desk.connect.call_count == TEST_RETRIES_MAX + 2
+    assert mock_idasen_desk.establish_connection.call_count == TEST_RETRIES_MAX + 2
 
 
 async def test_connect_with_different_ble_device_address(mock_idasen_desk: MagicMock):
@@ -315,6 +315,6 @@ async def test_reconnect_on_connection_drop(mock_idasen_desk: MagicMock):
 
     await asyncio.sleep(0)
     assert desk.is_connected
-    mock_idasen_desk.connect.assert_awaited()
+    mock_idasen_desk.establish_connection.assert_awaited()
     mock_idasen_desk.pair.assert_called()
     assert update_callback.call_count == 3

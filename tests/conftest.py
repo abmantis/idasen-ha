@@ -53,12 +53,14 @@ async def mock_idasen_desk():
         async def mock_monitor(callback: Callable[[float], Awaitable[None]]) -> None:
             mock_desk.trigger_monitor_callback = callback
 
-        mock_desk.connect = mock_establish_connection
         mock_desk.disconnect = AsyncMock(side_effect=mock_disconnect)
         mock_desk.wakeup = AsyncMock()
         mock_desk.monitor = AsyncMock(side_effect=mock_monitor)
         mock_desk.is_connected = False
         mock_desk.is_moving = False
         mock_desk.trigger_disconnected_callback = None
+        # Expose the establish_connection mock for tests that need to assert
+        # on or drive the connection attempt.
+        mock_desk.establish_connection = mock_establish_connection
 
         yield mock_desk

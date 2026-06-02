@@ -44,11 +44,8 @@ class ConnectionManager:
         """The IdasenDesk instance, or None if not yet connected."""
         return self._idasen_desk
 
-    async def connect(self, ble_device: BLEDevice, retry: bool) -> None:
+    async def connect(self, retry: bool) -> None:
         """Perform the bluetooth connection to the desk."""
-        if ble_device.address != self._ble_device.address:
-            self._ble_device = ble_device
-            self._idasen_desk = None
         self._keep_connected = True
         await self._connect(retry)
 
@@ -57,9 +54,6 @@ class ConnectionManager:
         self._keep_connected = False
         if self._idasen_desk is not None and self._idasen_desk.is_connected:
             await self._idasen_desk.disconnect()
-
-    def _create_idasen_desk(self, client: BleakClientWithServiceCache) -> IdasenDesk:
-        return IdasenDesk(self._ble_device, exit_on_fail=False, client=client)
 
     async def _connect(self, retry: bool) -> None:
         if self._idasen_desk is not None and self._idasen_desk.is_connected:
@@ -81,7 +75,9 @@ class ConnectionManager:
                     self._ble_device.address,
                     disconnected_callback=lambda _client: self._handle_disconnect(),
                 )
-                self._idasen_desk = self._create_idasen_desk(client)
+                self._idasen_desk = IdasenDesk(
+                    self._ble_device, exit_on_fail=False, client=client
+                )
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")
                 if retry:
@@ -175,4 +171,4 @@ class ConnectionManager:
         self._disconnect_callback()
         if self._keep_connected and not self._retry_pending:
             _LOGGER.info("Reconnecting since it should not be disconnected")
-            asyncio.get_event_loop().create_task(self.connect(self._ble_device, True))
+            asyncio.get_event_loop().create_task(self.connect(True))
