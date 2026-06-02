@@ -1,9 +1,8 @@
 """Manages the connection state to the desk."""
 
 import asyncio
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 import logging
-from typing import Callable, Optional
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakDBusError, BleakError
@@ -34,13 +33,13 @@ class ConnectionManager:
         self._retry_pending: bool = False
         self._ble_device = ble_device
 
-        self._idasen_desk: Optional[IdasenDesk] = None
+        self._idasen_desk: IdasenDesk | None = None
 
         self._connect_callback = connect_callback
         self._disconnect_callback = disconnect_callback
 
     @property
-    def idasen_desk(self) -> Optional[IdasenDesk]:
+    def idasen_desk(self) -> IdasenDesk | None:
         """The IdasenDesk instance, or None if not yet connected."""
         return self._idasen_desk
 

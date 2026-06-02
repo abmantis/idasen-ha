@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 import logging
-from typing import Callable
 
 from bleak.backends.device import BLEDevice
 from idasen import IdasenDesk

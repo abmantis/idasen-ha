@@ -1,7 +1,6 @@
 """Generic test fixtures."""
 
-from collections.abc import Awaitable
-from typing import Callable
+from collections.abc import Awaitable, Callable
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock
 
