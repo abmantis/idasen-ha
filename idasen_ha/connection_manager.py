@@ -1,12 +1,16 @@
 """Manages the connection state to the desk."""
 
 import asyncio
-from collections.abc import Awaitable
+from collections.abc import Awaitable, Callable
 import logging
-from typing import Callable
 
 from bleak.backends.device import BLEDevice
 from bleak.exc import BleakDBusError, BleakError
+from bleak_retry_connector import (
+    BleakClientWithServiceCache,
+    close_stale_connections_by_address,
+    establish_connection,
+)
 from idasen import IdasenDesk
 
 from .errors import AuthFailedError
@@ -27,15 +31,16 @@ class ConnectionManager:
         self._keep_connected: bool = False
         self._connecting: bool = False
         self._retry_pending: bool = False
+        self._ble_device = ble_device
 
-        self._idasen_desk: IdasenDesk = self._create_idasen_desk(ble_device)
+        self._idasen_desk: IdasenDesk | None = None
 
         self._connect_callback = connect_callback
         self._disconnect_callback = disconnect_callback
 
     @property
-    def idasen_desk(self) -> IdasenDesk:
-        """The IdasenDesk instance."""
+    def idasen_desk(self) -> IdasenDesk | None:
+        """The IdasenDesk instance, or None if not yet connected."""
         return self._idasen_desk
 
     async def connect(self, retry: bool) -> None:
@@ -46,18 +51,11 @@ class ConnectionManager:
     async def disconnect(self):
         """Stop the connection manager retry task."""
         self._keep_connected = False
-        if self._idasen_desk.is_connected:
+        if self._idasen_desk is not None and self._idasen_desk.is_connected:
             await self._idasen_desk.disconnect()
 
-    def _create_idasen_desk(self, ble_device: BLEDevice) -> IdasenDesk:
-        return IdasenDesk(
-            ble_device,
-            exit_on_fail=False,
-            disconnected_callback=lambda bledevice: self._handle_disconnect(),
-        )
-
     async def _connect(self, retry: bool) -> None:
-        if self._idasen_desk.is_connected:
+        if self._idasen_desk is not None and self._idasen_desk.is_connected:
             _LOGGER.debug("Desk already connected, skipping connect")
             return
 
@@ -68,10 +66,17 @@ class ConnectionManager:
         self._connecting = True
         try:
             try:
-                _LOGGER.info("Connecting...")
-                # Connect without wakeup — IdasenDesk.connect() bundles both,
-                # but we need pair() to complete before wakeup().
-                await self._idasen_desk._client.connect()  # noqa: SLF001
+                _LOGGER.info("Connecting via bleak-retry-connector...")
+                await close_stale_connections_by_address(self._ble_device.address)
+                client = await establish_connection(
+                    BleakClientWithServiceCache,
+                    self._ble_device,
+                    self._ble_device.address,
+                    disconnected_callback=lambda _client: self._handle_disconnect(),
+                )
+                self._idasen_desk = IdasenDesk(
+                    self._ble_device, exit_on_fail=False, client=client
+                )
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Connect failed")
                 if retry:
@@ -137,7 +142,7 @@ class ConnectionManager:
                 )
                 return
 
-            if self.idasen_desk.is_connected:
+            if self._idasen_desk is not None and self._idasen_desk.is_connected:
                 _LOGGER.debug("Already connected")
                 return
 
