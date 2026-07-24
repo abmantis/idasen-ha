@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "idasen-ha"
-version = "2.7.0"
+# Placeholder; the publish workflow injects the release tag as the version.
+version = "0.0.0"
 license = "MIT"
 authors = [{name = "Abílio Costa", email = "amfcalt@gmail.com"}]
 description = "Home Assistant helper lib for the IKEA Idasen Desk integration"
@@ -115,9 +116,6 @@ lint.ignore = [
     "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
     "UP006", # keep type annotation style as is
     "UP007", # keep type annotation style as is
-    # Ignored due to performance: https://github.com/charliermarsh/ruff/issues/2923
-    "UP038", # Use `X | Y` in `isinstance` call instead of `(X, Y)`
-
 ]
 
 [tool.ruff.lint.isort]

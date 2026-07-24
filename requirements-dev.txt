@@ -1,8 +1,8 @@
 -r requirements.txt
 -e .
 aioconsole
-black
 mypy
+prek
 pytest
 pytest-asyncio
 pytest-cov
