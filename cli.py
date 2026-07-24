@@ -23,9 +23,7 @@ args = parser.parse_args()
 
 async def getBLEDevice(address: str):
     """Get BLE Device from address."""
-    return await BleakScanner.find_device_by_address(
-        address
-    )  # pyright: ignore[reportGeneralTypeIssues]
+    return await BleakScanner.find_device_by_address(address)  # pyright: ignore[reportGeneralTypeIssues]
 
 
 def print_menu():
