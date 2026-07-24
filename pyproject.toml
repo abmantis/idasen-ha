@@ -11,9 +11,10 @@ authors = [{name = "Abílio Costa", email = "amfcalt@gmail.com"}]
 description = "Home Assistant helper lib for the IKEA Idasen Desk integration"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
     "idasen>=0.13.1,<0.14",
     "bleak-retry-connector>=3.4.0",
