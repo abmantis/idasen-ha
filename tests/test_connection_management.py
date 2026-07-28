@@ -208,6 +208,41 @@ async def test_disconnect_on_wakeup_failure(mock_idasen_desk: MagicMock):
     assert update_callback.call_count == 0
 
 
+@mock.patch("idasen_ha.connection_manager.HANDSHAKE_TIMEOUT_SEC", 0.01)
+@pytest.mark.parametrize("hanging_call_name", ["pair", "wakeup"])
+async def test_connect_times_out_on_stuck_handshake(
+    mock_idasen_desk: MagicMock, hanging_call_name: str
+):
+    """A handshake step that never returns must time out instead of hanging forever.
+
+    The BLE link is already established at this point, so nothing below
+    reports an error: the call simply never completes. Without an upper
+    bound the connection attempt stays in progress indefinitely, which makes
+    every later connect a no-op until the desk is disconnected by hand.
+    """
+    update_callback = Mock()
+    desk = Desk(update_callback, False)
+
+    never_returns = asyncio.Event()
+
+    async def hang():
+        await never_returns.wait()
+
+    getattr(mock_idasen_desk, hanging_call_name).side_effect = hang
+
+    with pytest.raises(TimeoutError):
+        await desk.connect(FAKE_BLE_DEVICE, retry=False)
+
+    mock_idasen_desk.disconnect.assert_called()
+    assert update_callback.call_count == 0
+
+    # The stuck attempt must not block later connects.
+    getattr(mock_idasen_desk, hanging_call_name).side_effect = None
+    await desk.connect(FAKE_BLE_DEVICE)
+    assert desk.is_connected
+    assert update_callback.call_count == 1
+
+
 @mock.patch("idasen_ha.connection_manager.asyncio.sleep")
 @pytest.mark.parametrize("exception", [TimeoutError(), BleakError()])
 @pytest.mark.parametrize("fail_call_name", ["establish_connection", "pair", "wakeup"])
