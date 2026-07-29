@@ -17,6 +17,8 @@ from .errors import AuthFailedError
 
 _LOGGER = logging.getLogger(__name__)
 
+HANDSHAKE_TIMEOUT_SEC = 45
+
 
 class ConnectionManager:
     """Handles connecting to the desk. Optionally keeps retrying to connect until it succeeds."""
@@ -86,7 +88,8 @@ class ConnectionManager:
 
             try:
                 _LOGGER.info("Pairing...")
-                await self._idasen_desk.pair()
+                async with asyncio.timeout(HANDSHAKE_TIMEOUT_SEC):
+                    await self._idasen_desk.pair()
             except BleakDBusError as ex:
                 _LOGGER.exception("Pair failed")
                 await self._idasen_desk.disconnect()
@@ -109,7 +112,8 @@ class ConnectionManager:
                 # writing to GATT characteristics. IdasenDesk.connect()
                 # normally does this immediately, which fails through
                 # Bluetooth proxies that require bonding first.
-                await self._idasen_desk.wakeup()
+                async with asyncio.timeout(HANDSHAKE_TIMEOUT_SEC):
+                    await self._idasen_desk.wakeup()
             except (TimeoutError, BleakError) as ex:
                 _LOGGER.exception("Wakeup failed")
                 await self._idasen_desk.disconnect()
