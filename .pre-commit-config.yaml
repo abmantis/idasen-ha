@@ -9,6 +9,6 @@ repos:
         files: ^(idasen_ha|tests)/|^cli\.py$
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.29.0
+    rev: v1.30.0
     hooks:
       - id: zizmor
